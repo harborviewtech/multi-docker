@@ -1,0 +1,35 @@
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t adugnaa/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run adugnaa/react-test npm test -- --coverage
+  
+after_success:
+  - docker build -t adugnaa/multi-client ./client
+  - docker build -t adugnaa/multi-nginx ./nginx
+  - docker build -t adugnaa/multi-server ./server
+  - docker build -t adugnaa/multi-worker ./worker
+  # Log in to the docker client
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # Take those images and push them to docker hub
+  - docker push adugnaa/multi-client
+  - docker push adugnaa/multi-nginx
+  - docker push adugnaa/multi-server
+  - docker push adugnaa/multi-worker
+
+eploy:
+  provider: elasticbeanstalk
+  region: "us-east-1"
+  app: "docker-react"
+  env: "You can find this value from elasticbeanstalk"
+  bucket_name: "this will be auto created with the EB. Get the name from the S3 lists"
+  bucket_path: "docker-multi""
+  on:
+	branch: master
+  access_key_id: "$AWS_ACCESS_KEY"
+  secret_access_key:
+	secure: "$AWS_SECRET_KEY"
